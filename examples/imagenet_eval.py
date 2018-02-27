@@ -13,14 +13,15 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 
 import sys
+
 sys.path.append('.')
 import pretrainedmodels
 import pretrainedmodels.utils
 
 model_names = sorted(name for name in pretrainedmodels.__dict__
-    if not name.startswith("__")
-    and name.islower()
-    and callable(pretrainedmodels.__dict__[name]))
+                     if not name.startswith("__")
+                     and name.islower()
+                     and callable(pretrainedmodels.__dict__[name]))
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
@@ -28,8 +29,8 @@ parser.add_argument('data', metavar='DIR',
 parser.add_argument('--arch', '-a', metavar='ARCH', default='fbresnet152',
                     choices=model_names,
                     help='model architecture: ' +
-                        ' | '.join(model_names) +
-                        ' (default: fbresnet152)')
+                         ' | '.join(model_names) +
+                         ' (default: fbresnet152)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=90, type=int, metavar='N',
@@ -38,7 +39,7 @@ parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('-b', '--batch-size', default=256, type=int,
                     metavar='N', help='mini-batch size (default: 256)')
-parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
+parser.add_argument('--lr', '--learning-rate', default=1e-4, type=float,
                     metavar='LR', help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
@@ -53,6 +54,7 @@ parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
 parser.add_argument('--pretrained', default='imagenet', help='use pre-trained model')
 
 best_prec1 = 0
+
 
 def main():
     global args, best_prec1
@@ -83,28 +85,24 @@ def main():
     cudnn.benchmark = True
 
     # Data loading code
-    #traindir = os.path.join(args.data, 'train')
+    traindir = os.path.join(args.data, 'train')
     valdir = os.path.join(args.data, 'val')
-
-    # train_loader = torch.utils.data.DataLoader(
-    #     datasets.ImageFolder(traindir, transforms.Compose([
-    #         transforms.RandomSizedCrop(max(model.input_size)),
-    #         transforms.RandomHorizontalFlip(),
-    #         transforms.ToTensor(),
-    #         normalize,
-    #     ])),
-    #     batch_size=args.batch_size, shuffle=True,
-    #     num_workers=args.workers, pin_memory=True)
-
-    
 
     if 'scale' in pretrainedmodels.pretrained_settings[args.arch][args.pretrained]:
         scale = pretrainedmodels.pretrained_settings[args.arch][args.pretrained]['scale']
     else:
         scale = 0.875
 
+    tr_tf = pretrainedmodels.utils.TransformImage(model, scale=scale, random_crop=True, random_hflip=True)
+
+    train_loader = torch.utils.data.DataLoader(
+        datasets.ImageFolder(traindir, tr_tf),
+        batch_size=args.batch_size, shuffle=True,
+        num_workers=args.workers, pin_memory=True)
+
+
     print('Images transformed from size {} to {}'.format(
-        int(round(max(model.input_size)/scale)),
+        int(round(max(model.input_size) / scale)),
         model.input_size))
 
     val_tf = pretrainedmodels.utils.TransformImage(model, scale=scale)
@@ -192,8 +190,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Acc@1 {top1.val:.3f} ({top1.avg:.3f})\t'
                   'Acc@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   epoch, i, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1, top5=top5))
+                epoch, i, len(train_loader), batch_time=batch_time,
+                data_time=data_time, loss=losses, top1=top1, top5=top5))
 
 
 def validate(val_loader, model, criterion):
@@ -231,8 +229,8 @@ def validate(val_loader, model, criterion):
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Acc@1 {top1.val:.3f} ({top1.avg:.3f})\t'
                   'Acc@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   i, len(val_loader), batch_time=batch_time, loss=losses,
-                   top1=top1, top5=top5))
+                i, len(val_loader), batch_time=batch_time, loss=losses,
+                top1=top1, top5=top5))
 
     print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
           .format(top1=top1, top5=top5))
@@ -248,6 +246,7 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
 
